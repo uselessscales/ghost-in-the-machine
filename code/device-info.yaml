@@ -1,0 +1,13 @@
+deviceInfo:
+  name: "gijupiter"
+  endPoints:
+    temp1:
+      title: "Temperature at cold oil into machine"
+      card-type: "crouton-chart-line"
+      values:
+        labels: [1]
+        series: [[]]
+        update: NULL
+      max: 3600
+      low: 10
+      high: 150

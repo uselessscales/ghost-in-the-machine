@@ -28,6 +28,6 @@ temperature = gtemp([0])
 client.loop_start()
 while True:
     client.publish("basic_temperature/T0", temperature.getTemperature(0))
-    time.sleep(1)
+    time.sleep(0.5)
 
 client.loop_stop()

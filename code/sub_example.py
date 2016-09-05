@@ -1,5 +1,5 @@
 import paho.mqtt.client as mqtt
-from groveTemperature import groveTemperature as gtemp
+from grooveTemperature import grooveTemperature as gtemp
 import time
 # The callback for when the client receives a CONNACK response from the server.
 def on_connect(client, userdata, rc):

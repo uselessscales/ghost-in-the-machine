@@ -1,6 +1,6 @@
 import pyupm_grove as grove
 
-class groveTemperature(object):
+class grooveTemperature(object):
 	"""docstring for ClassName"""
 	def __init__(self, sensor_list):
 		self.resetSensors(sensor_list)
@@ -8,7 +8,9 @@ class groveTemperature(object):
 	def resetSensors(self, sensor_list):
 		self.sensors = {}
 		for requested_sensors in sensor_list:
-			self.sensors[requested_sensors] = grove.GroveTemp(requested_sensors)
+			self.sensors[int(requested_sensors)] = grove.GroveTemp(int(requested_sensors))
 	
 	def getTemperature(self, sensor):
 		return self.sensors.get(sensor).value()
+
+		

@@ -21,7 +21,6 @@ class TemperatureMQTT(mqtt.Client):
             # Return device info on call to /inbox/name/deviceInfo:get
             if box == "inbox" and str(msg.payload) == "get" and address == "deviceInfo":
                 self.publish("/outbox/"+self._client_id+"/deviceInfo", self.deviceInfo, 1)
-                print self.deviceInfo
             # set the new update rate
             if box == "inbox" and address == "updateRate" :
                 self.startTimer(msg.payload)
@@ -32,8 +31,7 @@ class TemperatureMQTT(mqtt.Client):
                 self.publish("/outbox/"+client_id+"/updateRate", '{"value":'+ temperatureRate + '}',1)
                 print "Reseting values...."
             elif (msg.topic.split("/")[0] == "$SYS"):
-                print("Sys message: " + msg.payload)
-
+                pass
         else:
             pass
 
@@ -43,13 +41,11 @@ class TemperatureMQTT(mqtt.Client):
         print("Subscribed: "+str(mid)+" "+str(granted_qos))
 
     def on_log(self, mqttc, obj, level, string):
-        print(string)
-
+        pass
     def run(self, ip="localhost", port=1883, tls=None):
         self.lock = Lock()
 
         if tls != None:
-            print
             self.tls_set(tls)
         self.connect(ip, port, 60)
         
@@ -59,13 +55,11 @@ class TemperatureMQTT(mqtt.Client):
 
         device = json.loads(self.deviceInfo)
         for key in device["deviceInfo"]["endPoints"]:
-            #print key
             self.subscribe("/inbox/"+self._client_id+"/"+str(key), 1)
 
         self.loop_start()
         self.startTimer()
         self.publishUpdateRate()
-        print ("started timer with: "+str(self.updateRate))
 
         while True:
             pass
@@ -108,10 +102,8 @@ class TemperatureMQTT(mqtt.Client):
 
         try:
             self.timer = Timer(1.0/self.updateRate, self.update)
-            print("!!!!!!!!!!!!!!!! Tried to set timer t: " + str(self.updateRate))
         except:
             self.timer = Timer(1.0, self.update)
-            print("!!!!!!!!!!!!!!!! That failed, now setting the timer t: " + str(1.0))
 
         self.lock.release()       
         self.timer.start()

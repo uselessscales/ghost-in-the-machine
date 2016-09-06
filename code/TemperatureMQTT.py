@@ -2,7 +2,7 @@ import paho.mqtt.client as mqtt
 import time
 import json
 import collections
-from threading import Timer
+from threading import Timer, Lock
 from datetime import datetime
 from grooveTemperature import grooveTemperature as gTemp
 import random
@@ -24,9 +24,7 @@ class TemperatureMQTT(mqtt.Client):
                 print self.deviceInfo
             # set the new update rate
             if box == "inbox" and address == "updateRate" :
-                temp = json.loads(msg.payload)
-                print ("New Update Rate: " + str(temp["value"]))
-                self.startTimer(temp["value"])
+                self.startTimer(msg.payload)
                 self.publishUpdateRate()
 
             if box == "inbox" and address == "reset":
@@ -48,6 +46,8 @@ class TemperatureMQTT(mqtt.Client):
         print(string)
 
     def run(self, ip="localhost", port=1883, tls=None):
+        self.lock = Lock()
+
         if tls != None:
             print
             self.tls_set(tls)
@@ -63,9 +63,10 @@ class TemperatureMQTT(mqtt.Client):
             self.subscribe("/inbox/"+self._client_id+"/"+str(key), 1)
 
         self.loop_start()
-        self.timer = Timer(self.updateRate, self.update)
-        self.timer.start()
+        self.startTimer()
+        self.publishUpdateRate()
         print ("started timer with: "+str(self.updateRate))
+
         while True:
             pass
         self.loop_stop()
@@ -85,7 +86,7 @@ class TemperatureMQTT(mqtt.Client):
         device = json.loads(deviceInfo)
         device["deviceInfo"]["name"] = self._client_id
         self.deviceInfo = json.dumps(device)
-        self.updateRate = int(device["deviceInfo"]["endPoints"]["updateRate"]["values"]["value"])
+        self.updateRate = float(device["deviceInfo"]["endPoints"]["updateRate"]["values"]["value"])
         self.temperature = {}
         for endPoints in device["deviceInfo"]["endPoints"]:
             if "temperatureT" in endPoints:
@@ -94,34 +95,35 @@ class TemperatureMQTT(mqtt.Client):
         self.groove = gTemp(self.temperature.keys())
 
     def startTimer(self, newRate=None):
+        self.lock.acquire()
         if newRate != None:
             device = json.loads(self.deviceInfo)
-            self.updateRate = int(newRate)
+            self.updateRate = float(newRate)
             device["deviceInfo"]["endPoints"]["updateRate"]["values"]["value"] = self.updateRate
             self.deviceInfo = json.dumps(device)
         try:
             self.timer.cancel()
         except:
             pass
-        self.timer = Timer(self.updateRate, self.update)
+
+        try:
+            self.timer = Timer(1.0/self.updateRate, self.update)
+            print("!!!!!!!!!!!!!!!! Tried to set timer t: " + str(self.updateRate))
+        except:
+            self.timer = Timer(1.0, self.update)
+            print("!!!!!!!!!!!!!!!! That failed, now setting the timer t: " + str(1.0))
+
+        self.lock.release()       
         self.timer.start()
 
+
     def publishUpdateRate(self):
-         self.publish("/outbox/"+self._client_id+"/updateRate", '{"value":'+ str(self.updateRate) +'}',1)
+         self.publish("/outbox/"+self._client_id+"/updateRate", self.updateRate,2)
     
     def update(self):
         for name , key in self.temperature.iteritems():
             tempTemp = self.groove.getTemperature(int(name))
             if tempTemp < 0:
                 tempTemp = random.randint(0,50)
-            self.publish("/outbox/"+self._client_id+"/temperatureT"+ name, '{"series":['+str(tempTemp)+']}',1)            
-            
-            self.temperature[name].append( (str(datetime.now().strftime('%S')), tempTemp ) )
-            if name == "0":
-                unzipped = zip(*self.temperature[name])
-                self.publish("/outbox/"+self._client_id+"/temperatureHistory", '{"update": {"labels":[' + str(', '.join(map(str,unzipped[0]))) + '],"series":[[' + str(', '.join(map(str,unzipped[1]))) + ']]}}',1)
-                
-        self.timer = Timer(self.updateRate, self.update)
-        self.timer.start()
-
-
+            self.publish("/outbox/"+self._client_id+"/temperatureT"+ name, tempTemp,1)            
+        self.startTimer()

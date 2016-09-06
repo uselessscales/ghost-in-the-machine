@@ -5,6 +5,7 @@ import collections
 from threading import Timer
 from datetime import datetime
 from grooveTemperature import grooveTemperature as gTemp
+import random
 
 class TemperatureMQTT(mqtt.Client):
 
@@ -110,9 +111,12 @@ class TemperatureMQTT(mqtt.Client):
     
     def update(self):
         for name , key in self.temperature.iteritems():
-            self.publish("/outbox/"+self._client_id+"/temperatureT"+ name, '{"series":['+str(self.groove.getTemperature(int(name)))+']}',1)
+            tempTemp = self.groove.getTemperature(int(name))
+            if tempTemp < 0:
+                tempTemp = random.randint(0,50)
+            self.publish("/outbox/"+self._client_id+"/temperatureT"+ name, '{"series":['+str(tempTemp)+']}',1)            
             
-            self.temperature[name].append( (str(datetime.now().strftime('%S')), self.groove.getTemperature(int(name)) ) )
+            self.temperature[name].append( (str(datetime.now().strftime('%S')), tempTemp ) )
             if name == "0":
                 unzipped = zip(*self.temperature[name])
                 self.publish("/outbox/"+self._client_id+"/temperatureHistory", '{"update": {"labels":[' + str(', '.join(map(str,unzipped[0]))) + '],"series":[[' + str(', '.join(map(str,unzipped[1]))) + ']]}}',1)

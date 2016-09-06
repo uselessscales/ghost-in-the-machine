@@ -15,7 +15,7 @@ j = """
                     "series": [[0]],
                     "update": ""
                 },
-                "max": 3600,
+                "max": 30,
                 "low": 10,
                 "high": 180,
                 "card-type": "crouton-chart-line",

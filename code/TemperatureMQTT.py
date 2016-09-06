@@ -6,6 +6,8 @@ from threading import Timer, Lock
 from datetime import datetime
 from grooveTemperature import grooveTemperature as gTemp
 import random
+import pyupm_grove as grove
+from buzzer import buzz
 
 class TemperatureMQTT(mqtt.Client):
 
@@ -24,8 +26,13 @@ class TemperatureMQTT(mqtt.Client):
             # set the new update rate
             if box == "inbox" and address == "updateRate" :
                 self.startTimer(msg.payload)
-                self.publishUpdateRate()
+                self.publishUpdateRate()           
 
+            if box == "inbox" and address == "alarm" :
+                if str(msg.payload) < 1:
+                    buzz(1.0)
+                else:
+                    buzz(msg.payload)
             if box == "inbox" and address == "reset":
                 #initial values
                 self.publish("/outbox/"+client_id+"/updateRate", '{"value":'+ temperatureRate + '}',1)
@@ -52,6 +59,7 @@ class TemperatureMQTT(mqtt.Client):
         self.publish("/outbox/"+self._client_id+"/deviceInfo", self.deviceInfo, 1) #for autoreconnect
         self.subscribe("$SYS/#", 1)
         self.subscribe("/inbox/"+self._client_id+"/deviceInfo", 1)
+        self.subscribe("/inbox/"+self._client_id+"/alarm", 1)
 
         device = json.loads(self.deviceInfo)
         for key in device["deviceInfo"]["endPoints"]:

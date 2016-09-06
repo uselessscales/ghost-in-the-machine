@@ -19,7 +19,7 @@ class TemperatureMQTT(mqtt.Client):
 
             # Return device info on call to /inbox/name/deviceInfo:get
             if box == "inbox" and str(msg.payload) == "get" and address == "deviceInfo":
-                self.publish("/outbox/"+self._client_id+"/deviceInfo", self.deviceInfo)
+                self.publish("/outbox/"+self._client_id+"/deviceInfo", self.deviceInfo, 1)
                 print self.deviceInfo
             # set the new update rate
             if box == "inbox" and address == "updateRate" :
@@ -30,7 +30,7 @@ class TemperatureMQTT(mqtt.Client):
 
             if box == "inbox" and address == "reset":
                 #initial values
-                self.publish("/outbox/"+client_id+"/updateRate", '{"value":'+ temperatureRate + '}')
+                self.publish("/outbox/"+client_id+"/updateRate", '{"value":'+ temperatureRate + '}',1)
                 print "Reseting values...."
             elif (msg.topic.split("/")[0] == "$SYS"):
                 print("Sys message: " + msg.payload)
@@ -52,14 +52,14 @@ class TemperatureMQTT(mqtt.Client):
             self.tls_set(tls)
         self.connect(ip, port, 60)
         
-        self.publish("/outbox/"+self._client_id+"/deviceInfo", self.deviceInfo) #for autoreconnect
-        self.subscribe("$SYS/#", 0)
-        self.subscribe("/inbox/"+self._client_id+"/deviceInfo")
+        self.publish("/outbox/"+self._client_id+"/deviceInfo", self.deviceInfo, 1) #for autoreconnect
+        self.subscribe("$SYS/#", 1)
+        self.subscribe("/inbox/"+self._client_id+"/deviceInfo", 1)
 
         device = json.loads(self.deviceInfo)
         for key in device["deviceInfo"]["endPoints"]:
             #print key
-            self.subscribe("/inbox/"+self._client_id+"/"+str(key))
+            self.subscribe("/inbox/"+self._client_id+"/"+str(key), 1)
 
         self.loop_start()
         self.timer = Timer(self.updateRate, self.update)
@@ -106,16 +106,17 @@ class TemperatureMQTT(mqtt.Client):
         self.timer.start()
 
     def publishUpdateRate(self):
-         self.publish("/outbox/"+self._client_id+"/updateRate", '{"value":'+ str(self.updateRate) +'}')
+         self.publish("/outbox/"+self._client_id+"/updateRate", '{"value":'+ str(self.updateRate) +'}',1)
     
     def update(self):
         for name , key in self.temperature.iteritems():
-            self.publish("/outbox/"+self._client_id+"/temperatureT"+ name, '{"series":['+str(self.groove.getTemperature(int(name)))+']}')
+            self.publish("/outbox/"+self._client_id+"/temperatureT"+ name, '{"series":['+str(self.groove.getTemperature(int(name)))+']}',1)
+            
             self.temperature[name].append( (str(datetime.now().strftime('%S')), self.groove.getTemperature(int(name)) ) )
             if name == "0":
                 unzipped = zip(*self.temperature[name])
-                self.publish("/outbox/"+self._client_id+"/temperatureHistory", '{"update": {"labels":[' + str(', '.join(map(str,unzipped[0]))) + '],"series":[[' + str(', '.join(map(str,unzipped[1]))) + ']]}}')
-                print("updated history")
+                self.publish("/outbox/"+self._client_id+"/temperatureHistory", '{"update": {"labels":[' + str(', '.join(map(str,unzipped[0]))) + '],"series":[[' + str(', '.join(map(str,unzipped[1]))) + ']]}}',1)
+                
         self.timer = Timer(self.updateRate, self.update)
         self.timer.start()
 
